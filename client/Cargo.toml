@@ -4,16 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tokio = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-sha2 = { workspace = true }
-hex = { workspace = true }
 base64 = { workspace = true }
-anyhow = { workspace = true }
-reqwest = { workspace = true }
-clap = { workspace = true }
-uuid = { workspace = true }
-tar = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+eyre = { workspace = true }
 flate2 = { workspace = true }
+hex = { workspace = true }
+reqwest = { workspace = true, features = ["json"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tar = { workspace = true }
 tdx-quote = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+uuid = { workspace = true, features = ["v4", "serde"] }

@@ -268,15 +268,14 @@ checksum = "a1d728cc89cf3aee9ff92b05e62b19ee65a02b5702cff7d5a377e32c6ae29d8d"
 name = "client"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "base64",
  "clap",
+ "eyre",
  "flate2",
  "hex",
  "reqwest",
  "serde",
  "serde_json",
- "sha2",
  "tar",
  "tdx-quote",
  "tokio",
@@ -512,6 +511,16 @@ checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "eyre"
+version = "0.6.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7cd915d99f24784cdc19fd37ef22b97e3ff0ae756c7e492e9fbfe897d61e2aec"
+dependencies = [
+ "indenter",
+ "once_cell",
 ]
 
 [[package]]
@@ -972,6 +981,12 @@ dependencies = [
  "icu_normalizer",
  "icu_properties",
 ]
+
+[[package]]
+name = "indenter"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "964de6e86d545b246d84badc0fef527924ace5134f30641c203ef52ba83f58d5"
 
 [[package]]
 name = "indexmap"
@@ -1854,10 +1869,10 @@ dependencies = [
 name = "server"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "axum",
  "base64",
  "configfs-tsm",
+ "eyre",
  "hex",
  "reqwest",
  "serde",

@@ -1,6 +1,7 @@
 use axum::{routing::post, Json, Router};
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use configfs_tsm::create_tdx_quote;
+use eyre::Result;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::net::SocketAddr;
@@ -62,16 +63,13 @@ fn hash_file(path: &str) -> Result<[u8; 32], std::io::Error> {
     Ok(hash.into())
 }
 
-fn get_mrtd() -> Result<String, String> {
+fn get_mrtd() -> Result<String> {
     let provider = LinuxTdxProvider::new();
-    let mrtd = provider
-        .get_launch_measurement()
-        .map_err(|e| format!("Failed to get launch measurement: {:?}", e))?;
-
+    let mrtd = provider.get_launch_measurement()?;
     Ok(hex::encode(mrtd))
 }
 
-async fn detect_host_info() -> Result<HostInfo, String> {
+async fn detect_host_info() -> Result<HostInfo> {
     // Get MRTD first
     let mrtd = get_mrtd()?;
 

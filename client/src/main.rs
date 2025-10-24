@@ -1,6 +1,6 @@
-use anyhow::{Context, Result};
 use base64::Engine;
 use clap::Parser;
+use eyre::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 // ============================================================================
@@ -90,7 +90,7 @@ fn verify_mrtd_against_known_images(mrtd: &str, os_image: &str) -> Result<()> {
             println!("        ✓ MRTD matches known image: {}", known.description);
             return Ok(());
         } else {
-            anyhow::bail!(
+            eyre::bail!(
                 "❌ MRTD mismatch for {}!\n  Expected: {}\n  Got: {}",
                 os_image,
                 known.mrtd,
@@ -191,12 +191,12 @@ async fn attest_and_verify(
         base64::engine::general_purpose::STANDARD.decode(&attest_response.quote_b64)?;
 
     if quote_bytes.is_empty() {
-        anyhow::bail!("❌ Empty TDX quote");
+        eyre::bail!("❌ Empty TDX quote");
     }
 
     // Parse the quote to extract report_data
     let quote = tdx_quote::Quote::from_bytes(&quote_bytes)
-        .map_err(|e| anyhow::anyhow!("Failed to parse TDX quote: {:?}", e))?;
+        .map_err(|e| eyre::eyre!("Failed to parse TDX quote: {:?}", e))?;
 
     let report_data = quote.report_input_data();
     println!("        ✓ Quote parsed ({} bytes)", quote_bytes.len());
@@ -205,7 +205,7 @@ async fn attest_and_verify(
     println!("\n[ 5/5 ] Verifying report_data...");
     println!("        Checking nonce (freshness)...");
     if &report_data[..32] != nonce.as_slice() {
-        anyhow::bail!("❌ Nonce mismatch - possible replay attack!");
+        eyre::bail!("❌ Nonce mismatch - possible replay attack!");
     }
     println!("        ✓ Nonce matches");
 
@@ -216,7 +216,7 @@ async fn attest_and_verify(
 
         let actual_hash_hex = hex::encode(&report_data[32..64]);
         if actual_hash_hex != expected_hash {
-            anyhow::bail!(
+            eyre::bail!(
                 "❌ Application hash mismatch!\n  Expected: {}\n  Got: {}",
                 expected_hash,
                 actual_hash_hex

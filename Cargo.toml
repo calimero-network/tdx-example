@@ -3,35 +3,21 @@ members = ["server", "client"]
 resolver = "2"
 
 [workspace.dependencies]
-# Web framework
-axum = "0.7"
-tokio = { version = "1", features = ["full"] }
-
-# Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-
-# Cryptography
-sha2 = "0.10"
-hex = "0.4"
-base64 = "0.22"
-
-# TDX attestation
-tdx_workload_attestation = { version = "0.1.0", features = ["tdx-linux"] }
-tdx-quote = { version = "0.0.4" }
-configfs-tsm = "0.0.2"
-
-# Utilities
-uuid = { version = "1.0", features = ["v4", "serde"] }
 anyhow = "1.0"
-thiserror = "1.0"
-
-# HTTP client
-reqwest = { version = "0.12", features = ["json"] }
-
-# CLI
-clap = { version = "4.0", features = ["derive"] }
-
-# Archive handling
-tar = "0.4"
+axum = "0.7"
+base64 = "0.22"
+clap = "4.0"
+configfs-tsm = "0.0.2"
+eyre = "0.6"
 flate2 = "1.0"
+hex = "0.4"
+reqwest = "0.12"
+serde = "1.0"
+serde_json = "1.0"
+sha2 = "0.10"
+tar = "0.4"
+tdx-quote = "0.0.4"
+tdx_workload_attestation = "0.1.0"
+thiserror = "1.0"
+tokio = "1"
+uuid = "1.0"
