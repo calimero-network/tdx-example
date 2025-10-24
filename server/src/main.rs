@@ -33,10 +33,8 @@ struct InfoResponse {
 #[derive(Serialize, Debug)]
 struct AttestResponse {
     /// Base64-encoded TDX quote
+    /// The quote contains the report_data which the client must verify
     quote_b64: String,
-    /// Hex-encoded report_data (64 bytes)
-    /// Format: nonce[32] || app_hash[32]
-    report_data_hex: String,
 }
 
 #[derive(Serialize, Debug)]
@@ -194,10 +192,9 @@ async fn attest(
         })
     })?;
 
-    // 6. Return attestation
+    // 4. Return attestation
     Ok(Json(AttestResponse {
         quote_b64: base64_engine.encode(&quote_bytes),
-        report_data_hex: hex::encode(report_data),
     }))
 }
 

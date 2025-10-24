@@ -38,7 +38,6 @@ struct InfoResponse {
 #[derive(Deserialize, Debug)]
 struct AttestResponse {
     quote_b64: String,
-    report_data_hex: String,
 }
 
 #[derive(Serialize)]
@@ -186,9 +185,25 @@ async fn attest_and_verify(
         .context("Failed to parse attestation response")?;
     println!("        ✓ Attestation received");
 
-    // Step 4: Verify nonce (freshness)
-    println!("\n[ 4/4 ] Verifying nonce (freshness)...");
-    let report_data = hex::decode(&attest_response.report_data_hex)?;
+    // Step 4: Parse TDX quote and extract report_data
+    println!("\n[ 4/4 ] Parsing TDX quote...");
+    let quote_bytes =
+        base64::engine::general_purpose::STANDARD.decode(&attest_response.quote_b64)?;
+
+    if quote_bytes.is_empty() {
+        anyhow::bail!("❌ Empty TDX quote");
+    }
+
+    // Parse the quote to extract report_data
+    let quote = tdx_quote::Quote::from_bytes(&quote_bytes)
+        .map_err(|e| anyhow::anyhow!("Failed to parse TDX quote: {:?}", e))?;
+
+    let report_data = quote.report_input_data();
+    println!("        ✓ Quote parsed ({} bytes)", quote_bytes.len());
+
+    // Step 5: Verify nonce (freshness)
+    println!("\n[ 5/5 ] Verifying report_data...");
+    println!("        Checking nonce (freshness)...");
     if &report_data[..32] != nonce.as_slice() {
         anyhow::bail!("❌ Nonce mismatch - possible replay attack!");
     }
@@ -196,13 +211,8 @@ async fn attest_and_verify(
 
     // Verify application hash if provided
     if let (Some(app), Some(expected_hash)) = (&application, expected_application_hash) {
-        println!("\n[ * ] Verifying application hash...");
+        println!("        Checking application hash...");
         println!("        Application: {}", app);
-
-        // The application hash is in bytes 32-64 of report_data
-        if report_data.len() < 64 {
-            anyhow::bail!("❌ Report data too short for application hash");
-        }
 
         let actual_hash_hex = hex::encode(&report_data[32..64]);
         if actual_hash_hex != expected_hash {
@@ -214,19 +224,6 @@ async fn attest_and_verify(
         }
         println!("        ✓ Application hash matches");
     }
-
-    // Verify TDX quote structure
-    println!("\n[ * ] Verifying TDX quote...");
-    let quote_bytes =
-        base64::engine::general_purpose::STANDARD.decode(&attest_response.quote_b64)?;
-
-    if quote_bytes.is_empty() {
-        anyhow::bail!("❌ Empty TDX quote");
-    }
-    println!(
-        "        ✓ Quote structure valid ({} bytes)",
-        quote_bytes.len()
-    );
 
     // Verify MRTD
     println!("\n[ * ] Verifying MRTD (OS/VM integrity)...");

@@ -18,6 +18,7 @@ base64 = "0.22"
 
 # TDX attestation
 tdx_workload_attestation = { version = "0.1.0", features = ["tdx-linux"] }
+tdx-quote = { version = "0.0.4" }
 configfs-tsm = "0.0.2"
 
 # Utilities

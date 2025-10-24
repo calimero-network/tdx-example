@@ -16,3 +16,4 @@ clap = { workspace = true }
 uuid = { workspace = true }
 tar = { workspace = true }
 flate2 = { workspace = true }
+tdx-quote = { workspace = true }
