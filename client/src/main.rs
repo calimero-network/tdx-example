@@ -25,7 +25,7 @@ struct Cli {
 }
 
 // ============================================================================
-// Server Response Types
+// Server Primitives
 // ============================================================================
 
 #[derive(Deserialize, Debug)]
@@ -69,7 +69,7 @@ const KNOWN_OS_IMAGES: &[KnownImage] = &[
     KnownImage {
         name: "ubuntu-2404-noble-amd64-v20251014",
         // TODO: Run your server on tdx-demo to get the actual MRTD, then replace this placeholder
-        mrtd: "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        mrtd: "a5844e88897b70c318bef929ef4dfd6c7304c52c4bc9c3f39132f0fdccecf3eb5bab70110ee42a12509a31c037288694",
         description: "Ubuntu 24.04 Noble (2025-10-14) on GCP",
     },
     // Add more known images here as your deployment grows
@@ -101,7 +101,10 @@ fn verify_mrtd_against_known_images(mrtd: &str, os_image: &str) -> Result<()> {
     }
 
     // Image not in our database
-    println!("        ⚠ OS image '{}' not in known images database", os_image);
+    println!(
+        "        ⚠ OS image '{}' not in known images database",
+        os_image
+    );
     println!("        Actual MRTD: {}", mrtd);
     println!("        To add: Update KNOWN_OS_IMAGES in client/src/main.rs");
 
@@ -214,13 +217,16 @@ async fn attest_and_verify(
 
     // Verify TDX quote structure
     println!("\n[ * ] Verifying TDX quote...");
-    let quote_bytes = base64::engine::general_purpose::STANDARD
-        .decode(&attest_response.quote_b64)?;
+    let quote_bytes =
+        base64::engine::general_purpose::STANDARD.decode(&attest_response.quote_b64)?;
 
     if quote_bytes.is_empty() {
         anyhow::bail!("❌ Empty TDX quote");
     }
-    println!("        ✓ Quote structure valid ({} bytes)", quote_bytes.len());
+    println!(
+        "        ✓ Quote structure valid ({} bytes)",
+        quote_bytes.len()
+    );
 
     // Verify MRTD
     println!("\n[ * ] Verifying MRTD (OS/VM integrity)...");
@@ -229,10 +235,7 @@ async fn attest_and_verify(
     println!("        MRTD: {}...", &info_response.mrtd[..16]);
 
     // Verify against known OS images database
-    verify_mrtd_against_known_images(
-        &info_response.mrtd,
-        &info_response.os_image,
-    )?;
+    verify_mrtd_against_known_images(&info_response.mrtd, &info_response.os_image)?;
 
     println!("\n╔══════════════════════════════════════════════════════╗");
     println!("║             Attestation Verification: PASSED        ║");

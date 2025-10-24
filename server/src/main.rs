@@ -4,15 +4,11 @@ use configfs_tsm::create_tdx_quote;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::net::SocketAddr;
-use tdx_workload_attestation::tdx::LinuxTdxProvider;
 use tdx_workload_attestation::provider::AttestationProvider;
+use tdx_workload_attestation::tdx::LinuxTdxProvider;
 
 // ============================================================================
-// Configuration
-// ============================================================================
-
-// ============================================================================
-// Request/Response Types
+// Primitives
 // ============================================================================
 
 #[derive(Deserialize, Debug)]
@@ -39,7 +35,7 @@ struct AttestResponse {
     /// Base64-encoded TDX quote
     quote_b64: String,
     /// Hex-encoded report_data (64 bytes)
-    /// Format: nonce[32] || hash(server_hash || app_hash)[32]
+    /// Format: nonce[32] || app_hash[32]
     report_data_hex: String,
 }
 
@@ -62,21 +58,16 @@ struct HostInfo {
 // Helper Functions
 // ============================================================================
 
-fn hash_file(path: &str) -> Result<String, std::io::Error> {
+fn hash_file(path: &str) -> Result<[u8; 32], std::io::Error> {
     let contents = std::fs::read(path)?;
     let hash = Sha256::digest(&contents);
-    Ok(hex::encode(hash))
+    Ok(hash.into())
 }
-
-fn get_server_hash() -> String {
-    let exe_path = std::env::current_exe().expect("Failed to get current executable path");
-    hash_file(exe_path.to_str().unwrap()).expect("Failed to hash server binary")
-}
-
 
 fn get_mrtd() -> Result<String, String> {
     let provider = LinuxTdxProvider::new();
-    let mrtd = provider.get_launch_measurement()
+    let mrtd = provider
+        .get_launch_measurement()
         .map_err(|e| format!("Failed to get launch measurement: {:?}", e))?;
 
     Ok(hex::encode(mrtd))
@@ -179,10 +170,7 @@ async fn attest(
         }));
     }
 
-    // 2. Get server hash
-    let server_hash = get_server_hash();
-
-    // 3. Get application hash (if requested)
+    // 2. Get application hash (if requested)
     let app_hash = if let Some(app_name) = &req.application {
         let app_path = get_application_path(app_name);
         hash_file(&app_path).map_err(|e| {
@@ -191,25 +179,13 @@ async fn attest(
             })
         })?
     } else {
-        String::new()
+        [0u8; 32]
     };
 
-    // 4. Build report_data: nonce[32] || hash(server_hash || app_hash)[32]
-    // NOTE: Server hash is included in report_data but NOT returned to client because:
-    // - Non-sealed: Server could fake the hash anyway (meaningless to return it)
-    // - Sealed: Server identity is proven by MRTD (hash is already measured)
-    // The hash is still included in report_data to bind the attestation to the
-    // server binary, but client cannot verify it in non-sealed mode.
-    let combined = if app_hash.is_empty() {
-        server_hash
-    } else {
-        format!("{}{}", server_hash, app_hash)
-    };
-    let combined_hash = Sha256::digest(combined.as_bytes());
-
+    // 3. Build report_data: nonce[32] || app_hash[32]
     let mut report_data = [0u8; 64];
     report_data[..32].copy_from_slice(&nonce);
-    report_data[32..].copy_from_slice(&combined_hash[..32]);
+    report_data[32..].copy_from_slice(&app_hash);
 
     // 5. Generate TDX quote
     let quote_bytes = create_tdx_quote(report_data).map_err(|e| {
@@ -250,7 +226,5 @@ async fn main() {
         .await
         .expect("Failed to bind to address");
 
-    axum::serve(listener, app)
-        .await
-        .expect("Server failed");
+    axum::serve(listener, app).await.expect("Server failed");
 }
