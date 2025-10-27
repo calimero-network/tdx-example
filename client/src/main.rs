@@ -186,7 +186,7 @@ async fn attest_and_verify(
     println!("        ✓ Attestation received");
 
     // Step 4: Parse TDX quote and extract report_data
-    println!("\n[ 4/4 ] Parsing TDX quote...");
+    println!("\n[ 4/6 ] Parsing TDX quote...");
     let quote_bytes =
         base64::engine::general_purpose::STANDARD.decode(&attest_response.quote_b64)?;
 
@@ -201,8 +201,55 @@ async fn attest_and_verify(
     let report_data = quote.report_input_data();
     println!("        ✓ Quote parsed ({} bytes)", quote_bytes.len());
 
-    // Step 5: Verify nonce (freshness)
-    println!("\n[ 5/5 ] Verifying report_data...");
+    // Pretty print all attestation fields
+    println!("\n        📋 Attestation Quote Fields:");
+    println!("        ┌─────────────────────────────────────────────────────────");
+    println!("        │ tee_tcb_svn:      {}", hex::encode(&quote.body.tee_tcb_svn));
+    println!("        │ mr_seam:          {}", hex::encode(&quote.body.mrseam));
+    println!("        │ mr_signer_seam:   {}", hex::encode(&quote.body.mrsignerseam));
+    println!("        │ seam_attributes:  {}", hex::encode(&quote.body.seamattributes));
+    println!("        │ td_attributes:    {}", hex::encode(&quote.body.tdattributes));
+    println!("        │ xfam:             {}", hex::encode(&quote.body.xfam));
+    println!("        │ mr_td:            {}", hex::encode(&quote.body.mrtd));
+    println!("        │ mr_config_id:     {}", hex::encode(&quote.body.mrconfigid));
+    println!("        │ mr_owner:         {}", hex::encode(&quote.body.mrowner));
+    println!("        │ mr_owner_config:  {}", hex::encode(&quote.body.mrownerconfig));
+    println!("        │ rt_mr0:           {}", hex::encode(&quote.body.rtmr0));
+    println!("        │ rt_mr1:           {}", hex::encode(&quote.body.rtmr1));
+    println!("        │ rt_mr2:           {}", hex::encode(&quote.body.rtmr2));
+    println!("        │ rt_mr3:           {}", hex::encode(&quote.body.rtmr3));
+    println!("        │ report_data:      {}", hex::encode(&quote.body.reportdata));
+    if let Some(tee_tcb_svn_2) = &quote.body.tee_tcb_svn_2 {
+        println!("        │ tee_tcb_svn_2:    {}", hex::encode(tee_tcb_svn_2));
+    }
+    if let Some(mrservicetd) = &quote.body.mrservicetd {
+        println!("        │ mr_service_td:    {}", hex::encode(mrservicetd));
+    }
+    println!("        └─────────────────────────────────────────────────────────");
+
+    // Step 5: Get collateral and verify certificate chain
+    println!("\n[ 5/6 ] Fetching collateral and verifying certificate chain...");
+    println!("        Fetching collateral from Intel PCS...");
+
+    let collateral = dcap_qvl::collateral::get_collateral_from_pcs(&quote_bytes)
+        .await
+        .map_err(|e| eyre::eyre!("Failed to fetch collateral from Intel PCS: {:?}", e))?;
+
+    println!("        ✓ Collateral fetched");
+
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)?
+        .as_secs();
+
+    let _verified_report = dcap_qvl::verify::verify(&quote_bytes, &collateral, now)
+        .map_err(|e| eyre::eyre!("Quote verification failed: {:?}", e))?;
+
+    println!("        ✓ Intel signature verified");
+    println!("        ✓ PCK certificate chain verified");
+    println!("        ✓ TCB (Trusted Computing Base) verified");
+
+    // Step 6: Verify nonce (freshness)
+    println!("\n[ 6/6 ] Verifying report_data...");
     println!("        Checking nonce (freshness)...");
     if &report_data[..32] != nonce.as_slice() {
         eyre::bail!("❌ Nonce mismatch - possible replay attack!");

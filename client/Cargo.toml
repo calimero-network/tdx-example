@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 base64 = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
+dcap-qvl = { workspace = true }
 eyre = { workspace = true }
 flate2 = { workspace = true }
 hex = { workspace = true }

@@ -142,7 +142,7 @@ The quote contains the `report_data` which the client must parse and verify.
 
 | Property | Verification | Trust Anchor |
 |----------|--------------|--------------|
-| **Hardware** | TDX quote signature (⚠ not yet verified) | Intel |
+| **Hardware** | TDX quote signature + PCK certificate chain | Intel (via DCAP) |
 | **OS Image** | MRTD comparison | Cloud provider + known images DB |
 | **Application Binary** | Hash in quote's report_data | TDX hardware measurement |
 | **Freshness** | Nonce in quote's report_data | Client-generated randomness |
@@ -150,15 +150,15 @@ The quote contains the `report_data` which the client must parse and verify.
 ### Current Security Level
 
 ✓ **Protects against:**
+- Fake TDX hardware (Intel signature + certificate chain verified via DCAP)
 - Wrong OS image (MRTD verification)
 - Tampered application binary (hash in TDX quote)
 - Replay attacks (nonce verification)
 - Server lying about report_data (extracted from signed quote)
 
 ⚠ **Does NOT protect against:**
-- Fake TDX hardware (quote signature not verified yet - see "Missing Features")
 - Server operator swapping application after attestation
-- Malicious server operator with root access
+- Malicious server operator with root access (see `SECURITY-ADVANCED.md` for solutions)
 
 ## Architecture
 
@@ -213,27 +213,21 @@ const KNOWN_OS_IMAGES: &[KnownImage] = &[
 3. Add entry to `KNOWN_OS_IMAGES` array
 4. Recompile client
 
-## Missing Features
+## Implementation Notes
 
-### Certificate Chain Verification ⚠️
+### Certificate Chain Verification ✅
 
-**Current**: The TDX quote signature is **not verified**. The quote contains:
-- Attestation key certificate
-- PCK (Provisioning Certification Key) certificate chain
-- Intel signature
+**Implementation**: Uses Intel's official `dcap-qvl` (Quote Verification Library) for complete certificate chain verification.
 
-**What's needed**: Verify the complete certificate chain:
-1. Parse quote's certification data
-2. Extract PCK certificate chain
-3. Verify chain up to Intel root CA
-4. Verify quote signature with attestation key
+**What it verifies**:
+1. Fetches collateral from Intel PCS (Provisioning Certification Service)
+2. Verifies PCK certificate chain up to Intel root CA
+3. Verifies quote signature with attestation key
+4. Validates TCB (Trusted Computing Base) status
 
-**Libraries to use**:
-- `tdx-quote` crate already parses certification data
-- Need to add certificate chain validation using `x509-parser` or similar
-- Intel's DCAP library provides reference implementation
+**Library**: `dcap-qvl = "0.3"` - Pure Rust implementation supporting both SGX and TDX quotes
 
-**Security impact**: Without this, a sophisticated attacker could forge quotes. MRTD verification provides some protection (must match cloud provider's measurements), but full chain verification is essential for production.
+**Note**: Requires network access to Intel PCS during verification. For offline verification, collateral can be cached.
 
 ## Advanced Topics
 
