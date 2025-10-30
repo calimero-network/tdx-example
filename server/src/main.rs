@@ -1,11 +1,15 @@
 use axum::{routing::post, Json, Router};
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
-use configfs_tsm::create_tdx_quote;
 use eyre::Result;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::net::SocketAddr;
+
+#[cfg(target_os = "linux")]
+use configfs_tsm::create_tdx_quote;
+#[cfg(target_os = "linux")]
 use tdx_workload_attestation::provider::AttestationProvider;
+#[cfg(target_os = "linux")]
 use tdx_workload_attestation::tdx::LinuxTdxProvider;
 
 // ============================================================================
@@ -63,10 +67,18 @@ fn hash_file(path: &str) -> Result<[u8; 32], std::io::Error> {
     Ok(hash.into())
 }
 
+#[cfg(target_os = "linux")]
 fn get_mrtd() -> Result<String> {
     let provider = LinuxTdxProvider::new();
     let mrtd = provider.get_launch_measurement()?;
     Ok(hex::encode(mrtd))
+}
+
+#[cfg(not(target_os = "linux"))]
+fn get_mrtd() -> Result<String> {
+    // Mock MRTD for development on non-Linux platforms (e.g., macOS)
+    eprintln!("⚠️  WARNING: Running on non-Linux platform - using mock MRTD");
+    Ok("0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".to_string())
 }
 
 async fn detect_host_info() -> Result<HostInfo> {
@@ -184,11 +196,26 @@ async fn attest(
     report_data[32..].copy_from_slice(&app_hash);
 
     // 5. Generate TDX quote
+    #[cfg(target_os = "linux")]
     let quote_bytes = create_tdx_quote(report_data).map_err(|e| {
         Json(ErrorResponse {
             error: format!("Failed to generate TDX quote: {:?}", e),
         })
     })?;
+
+    #[cfg(not(target_os = "linux"))]
+    let quote_bytes = {
+        // Mock quote for development on non-Linux platforms
+        eprintln!("⚠️  WARNING: Generating mock TDX quote (non-Linux platform)");
+        eprintln!("⚠️  This quote will NOT pass cryptographic verification!");
+
+        // Return a minimal mock quote that at least has the report_data in it
+        // Real quotes are ~8KB, but this is just for local testing
+        let mut mock_quote = vec![0u8; 128];
+        // Put report_data at a known offset so client can still parse it (somewhat)
+        mock_quote.extend_from_slice(&report_data);
+        mock_quote
+    };
 
     // 4. Return attestation
     Ok(Json(AttestResponse {
